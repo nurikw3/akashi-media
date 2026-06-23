@@ -21,5 +21,10 @@ class PublisherPort(Protocol):
         ...
 
     def publish(self, text: str, media: MediaFile) -> PublishResult:
-        """Publish immediately (Scope Cut: no scheduling). Raise PublishError on failure."""
+        """Publish immediately (Scope Cut: no scheduling).
+
+        Return a PublishResult — success via PublishResult.ok, expected failures
+        via PublishResult.failed (with a non-sensitive detail). Implementations
+        should not raise for ordinary API failures.
+        """
         ...

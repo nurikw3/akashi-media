@@ -1,0 +1,7 @@
+{% if error %}
+<p class="alert alert--error" role="alert">{{ error }}</p>
+{% elif result and result.success %}
+<p class="alert alert--ok" role="status">Опубликовано · ID: {{ result.external_id }}</p>
+{% else %}
+<p class="alert alert--error" role="alert">{{ result.detail if result else "Не удалось опубликовать" }}</p>
+{% endif %}

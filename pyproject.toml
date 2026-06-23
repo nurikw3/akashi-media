@@ -15,6 +15,7 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q --cov=src --cov-report=term-missing"
+markers = ["live: opt-in tests that hit real external APIs (skipped without credentials)"]
 
 [tool.coverage.run]
 branch = true

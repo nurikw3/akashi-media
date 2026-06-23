@@ -11,9 +11,13 @@ import os
 from dataclasses import dataclass
 from typing import Mapping
 
+from src.adapters.publishers.factory import PublisherFactory
+from src.adapters.publishers.fake import FakePublisher
 from src.adapters.repositories.in_memory_post_repository import InMemoryPostRepository
+from src.domain.models import Channel, MediaFile
 from src.domain.ports.content_adapter import ContentAdapterPort
 from src.domain.ports.post_repository import PostRepository
+from src.domain.ports.publisher import PublisherPort
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +70,41 @@ class Container:
     settings: Settings
     post_repository: PostRepository
     content_adapter: ContentAdapterPort
+    publisher_factory: PublisherFactory
+
+
+def _unconfigured_media_host(_media: MediaFile) -> str:
+    # Phase 1 has no media hosting; the Graph API needs a public image URL.
+    from src.domain.errors import PublishError
+
+    raise PublishError("Media hosting is not configured (Phase 2)")
+
+
+def _build_publisher_factory(settings: Settings) -> PublisherFactory:
+    """Real Instagram publisher when IG creds are present, else a fake.
+
+    LinkedIn publisher is registered by slice S3.
+    """
+    publishers: dict[Channel, PublisherPort] = {}
+
+    if settings.ig_token and settings.ig_user_id:
+        import httpx
+
+        from src.adapters.publishers.instagram import InstagramGraphPublisher
+
+        publishers[Channel.INSTAGRAM] = InstagramGraphPublisher(
+            http_client=httpx.Client(
+                timeout=30.0,
+                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+            ),
+            token=settings.ig_token,
+            ig_user_id=settings.ig_user_id,
+            resolve_image_url=_unconfigured_media_host,
+        )
+    else:
+        publishers[Channel.INSTAGRAM] = FakePublisher(Channel.INSTAGRAM)
+
+    return PublisherFactory(publishers)
 
 
 def _build_content_adapter(settings: Settings) -> ContentAdapterPort:
@@ -89,6 +128,7 @@ def build_container(settings: Settings) -> Container:
         settings=settings,
         post_repository=InMemoryPostRepository(),
         content_adapter=_build_content_adapter(settings),
+        publisher_factory=_build_publisher_factory(settings),
     )
 
 
