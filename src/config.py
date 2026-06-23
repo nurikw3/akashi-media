@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from src.adapters.repositories.in_memory_post_repository import InMemoryPostRepository
+from src.domain.ports.content_adapter import ContentAdapterPort
 from src.domain.ports.post_repository import PostRepository
 
 
@@ -64,6 +65,22 @@ class Container:
 
     settings: Settings
     post_repository: PostRepository
+    content_adapter: ContentAdapterPort
+
+
+def _build_content_adapter(settings: Settings) -> ContentAdapterPort:
+    """OpenAI adapter when a key is present, otherwise a deterministic fake."""
+    if settings.openai_api_key:
+        from openai import OpenAI
+
+        from src.adapters.content.openai_adapter import OpenAIContentAdapter
+
+        client = OpenAI(api_key=settings.openai_api_key)
+        return OpenAIContentAdapter(client=client, model=settings.openai_model)
+
+    from src.adapters.content.fake import FakeContentAdapter
+
+    return FakeContentAdapter()
 
 
 def build_container(settings: Settings) -> Container:
@@ -71,6 +88,7 @@ def build_container(settings: Settings) -> Container:
     return Container(
         settings=settings,
         post_repository=InMemoryPostRepository(),
+        content_adapter=_build_content_adapter(settings),
     )
 
 

@@ -1,0 +1,22 @@
+<div id="linkedin-adapted" class="adapted">
+  {% if error %}
+  <p class="alert alert--error" role="alert">{{ error }}</p>
+  {% else %}
+  <label class="field">
+    <span class="field__label">Адаптированный текст — отредактируйте при необходимости</span>
+    {# adapted_text is LLM-generated (untrusted). Autoescape handles encoding — do NOT add | safe. #}
+    <textarea class="field__textarea" name="linkedin_text" rows="9">{{ adapted_text }}</textarea>
+  </label>
+  <button
+    class="btn btn--primary"
+    hx-post="/publish/linkedin"
+    hx-include="[name='linkedin_text'],[name='media']"
+    hx-target="#linkedin-result"
+    hx-encoding="multipart/form-data"
+    hx-disabled-elt="this"
+  >
+    Опубликовать в LinkedIn
+  </button>
+  <div id="linkedin-result" class="result" aria-live="polite"></div>
+  {% endif %}
+</div>
