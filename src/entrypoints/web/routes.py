@@ -83,6 +83,29 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
             {"adapted_text": adapted, "error": None},
         )
 
+    def _publish(request: Request, channel: Channel, text: str, media: UploadFile):
+        """Shared publish flow for both channels: validate → command → fragment."""
+        container = request.app.state.container
+
+        def fragment(result, error):
+            return templates.TemplateResponse(
+                request, "partials/publish_result.html", {"result": result, "error": error}
+            )
+
+        clean_text = text.strip()
+        if not clean_text:
+            return fragment(None, "Текст публикации пуст")
+        try:
+            media_file = _read_media(media)
+        except ValueError as exc:
+            return fragment(None, str(exc))
+
+        publisher = container.publisher_factory.create(channel)
+        command = PublishPostCommand(
+            publisher=publisher, post_repository=container.post_repository
+        )
+        return fragment(command.execute(clean_text, media_file), None)
+
     @router.post("/publish/instagram", response_class=HTMLResponse)
     def publish_instagram(
         request: Request,
@@ -90,21 +113,15 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
         media: UploadFile = File(...),
         user: str = Depends(require_user),
     ):
-        container = request.app.state.container
-        try:
-            media_file = _read_media(media)
-        except ValueError as exc:
-            return templates.TemplateResponse(
-                request, "partials/publish_result.html", {"result": None, "error": str(exc)}
-            )
+        return _publish(request, Channel.INSTAGRAM, source_text, media)
 
-        publisher = container.publisher_factory.create(Channel.INSTAGRAM)
-        command = PublishPostCommand(
-            publisher=publisher, post_repository=container.post_repository
-        )
-        result = command.execute(source_text, media_file)
-        return templates.TemplateResponse(
-            request, "partials/publish_result.html", {"result": result, "error": None}
-        )
+    @router.post("/publish/linkedin", response_class=HTMLResponse)
+    def publish_linkedin(
+        request: Request,
+        linkedin_text: str = Form(..., max_length=20_000),
+        media: UploadFile = File(...),
+        user: str = Depends(require_user),
+    ):
+        return _publish(request, Channel.LINKEDIN, linkedin_text, media)
 
     app.include_router(router)

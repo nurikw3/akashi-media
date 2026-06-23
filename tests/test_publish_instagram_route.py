@@ -51,6 +51,16 @@ def test_publish_instagram_rejects_forged_content_type(auth_client):
     assert "alert--error" in resp.text
 
 
+def test_publish_instagram_rejects_empty_text(auth_client):
+    resp = auth_client.post(
+        "/publish/instagram",
+        data={"source_text": "   "},
+        files={"media": ("p.png", io.BytesIO(_png_bytes()), "image/png")},
+    )
+    assert resp.status_code == 200
+    assert "alert--error" in resp.text
+
+
 def test_publish_instagram_requires_media(auth_client):
     resp = auth_client.post("/publish/instagram", data={"source_text": "text"})
     assert resp.status_code == 422  # missing required file

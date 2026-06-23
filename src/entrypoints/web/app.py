@@ -7,6 +7,7 @@ would violate the "wiring only in config.py" rule.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -27,8 +28,19 @@ _SESSION_MAX_AGE = 8 * 60 * 60  # 8 hours — internal shared credential
 
 
 def build_web_app(container: Container) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        yield
+        for resource in app.state.container.closeables:
+            try:
+                resource.close()
+            except Exception:  # noqa: BLE001 — best-effort cleanup on shutdown
+                pass
+
     # /docs and /redoc disabled: this is an internal gateway behind a shared login.
-    app = FastAPI(title="AkashiMedia", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="AkashiMedia", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+    )
     app.state.container = container
     app.state.login_rate_limiter = LoginRateLimiter()
 

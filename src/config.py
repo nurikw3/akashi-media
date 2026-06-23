@@ -8,8 +8,8 @@ and this module decides which adapter satisfies each port.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
-from typing import Mapping
+from dataclasses import dataclass, field
+from typing import Any, Mapping
 
 from src.adapters.publishers.factory import PublisherFactory
 from src.adapters.publishers.fake import FakePublisher
@@ -71,6 +71,8 @@ class Container:
     post_repository: PostRepository
     content_adapter: ContentAdapterPort
     publisher_factory: PublisherFactory
+    # Resources (e.g. httpx clients) to close on app shutdown.
+    closeables: tuple[Any, ...] = field(default=())
 
 
 def _unconfigured_media_host(_media: MediaFile) -> str:
@@ -80,23 +82,30 @@ def _unconfigured_media_host(_media: MediaFile) -> str:
     raise PublishError("Media hosting is not configured (Phase 2)")
 
 
-def _build_publisher_factory(settings: Settings) -> PublisherFactory:
-    """Real Instagram publisher when IG creds are present, else a fake.
+def _http_client():
+    import httpx
 
-    LinkedIn publisher is registered by slice S3.
+    return httpx.Client(
+        timeout=30.0,
+        limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+    )
+
+
+def _build_publisher_factory(settings: Settings) -> tuple[PublisherFactory, tuple[Any, ...]]:
+    """Real publishers when channel creds are present, else fakes.
+
+    Returns the factory plus any http clients to close on shutdown.
     """
     publishers: dict[Channel, PublisherPort] = {}
+    closeables: list[Any] = []
 
     if settings.ig_token and settings.ig_user_id:
-        import httpx
-
         from src.adapters.publishers.instagram import InstagramGraphPublisher
 
+        client = _http_client()
+        closeables.append(client)
         publishers[Channel.INSTAGRAM] = InstagramGraphPublisher(
-            http_client=httpx.Client(
-                timeout=30.0,
-                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
-            ),
+            http_client=client,
             token=settings.ig_token,
             ig_user_id=settings.ig_user_id,
             resolve_image_url=_unconfigured_media_host,
@@ -104,7 +113,20 @@ def _build_publisher_factory(settings: Settings) -> PublisherFactory:
     else:
         publishers[Channel.INSTAGRAM] = FakePublisher(Channel.INSTAGRAM)
 
-    return PublisherFactory(publishers)
+    if settings.li_token and settings.li_author_urn:
+        from src.adapters.publishers.linkedin import LinkedInPublisher
+
+        client = _http_client()
+        closeables.append(client)
+        publishers[Channel.LINKEDIN] = LinkedInPublisher(
+            http_client=client,
+            token=settings.li_token,
+            author_urn=settings.li_author_urn,
+        )
+    else:
+        publishers[Channel.LINKEDIN] = FakePublisher(Channel.LINKEDIN)
+
+    return PublisherFactory(publishers), tuple(closeables)
 
 
 def _build_content_adapter(settings: Settings) -> ContentAdapterPort:
@@ -124,11 +146,13 @@ def _build_content_adapter(settings: Settings) -> ContentAdapterPort:
 
 def build_container(settings: Settings) -> Container:
     """Bind concrete adapters to ports. Extended by each feature slice."""
+    publisher_factory, closeables = _build_publisher_factory(settings)
     return Container(
         settings=settings,
         post_repository=InMemoryPostRepository(),
         content_adapter=_build_content_adapter(settings),
-        publisher_factory=_build_publisher_factory(settings),
+        publisher_factory=publisher_factory,
+        closeables=closeables,
     )
 
 
