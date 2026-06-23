@@ -24,11 +24,12 @@ src/
 
 ## Запуск
 
+Используется [uv](https://docs.astral.sh/uv/) (Python 3.12 закреплён в `.python-version`):
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
+uv sync                     # создаёт .venv и ставит зависимости (вкл. dev)
 cp .env.example .env        # заполнить APP_USERNAME/APP_PASSWORD/APP_SECRET_KEY (>=32)
-python -m src.entrypoints.web.server   # http://127.0.0.1:8000
+uv run python -m src.entrypoints.web.server   # http://127.0.0.1:8000
 ```
 
 Без `OPENAI_API_KEY` / `IG_TOKEN` / `LI_TOKEN` приложение работает на
@@ -53,8 +54,8 @@ python -m src.entrypoints.web.server   # http://127.0.0.1:8000
 ## Тесты
 
 ```bash
-pytest                          # юнит + интеграционные (live пропускаются без ключей)
-pytest -m live                  # реальные вызовы API (нужны токены, см. tests/integration/)
+uv run pytest                   # юнит + интеграционные (live пропускаются без ключей)
+uv run pytest -m live           # реальные вызовы API (нужны токены, см. tests/integration/)
 ```
 
 Покрытие ~93%. Живые тесты публикации помечены `@pytest.mark.live` и
