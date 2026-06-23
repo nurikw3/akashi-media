@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Композер — AkashiMedia{% endblock %}
+{% block body %}
+<header class="topbar">
+  <p class="brand-mark">明 AkashiMedia</p>
+  <div class="topbar__meta">
+    <span class="topbar__user">{{ user }}</span>
+    <form method="post" action="/logout" class="topbar__logout">
+      <button class="btn btn--ghost" type="submit">Выйти</button>
+    </form>
+  </div>
+</header>
+
+<main class="composer" aria-label="Композер публикаций">
+  <!-- Source pane: media + original copy → Instagram -->
+  <section class="pane pane--source" aria-labelledby="source-heading">
+    <div class="pane__head">
+      <span class="step-tag">01 · Источник</span>
+      <h2 id="source-heading" class="pane__title">Исходный пост</h2>
+    </div>
+
+    <form
+      class="composer-form"
+      hx-post="/publish/instagram"
+      hx-target="#instagram-result"
+      hx-encoding="multipart/form-data"
+      hx-disabled-elt="this"
+    >
+      <label class="field">
+        <span class="field__label">Медиафайл (фото)</span>
+        <input class="field__file" type="file" name="media" accept="image/*" required />
+      </label>
+      <label class="field">
+        <span class="field__label">Текст</span>
+        <textarea class="field__textarea" name="source_text" rows="9"
+          placeholder="Вставьте исходный текст поста…" required></textarea>
+      </label>
+      <button class="btn btn--accent" type="submit">Опубликовать в Instagram</button>
+    </form>
+    <div id="instagram-result" class="result" aria-live="polite"></div>
+  </section>
+
+  <!-- Target pane: AI repackage → LinkedIn -->
+  <section class="pane pane--target" aria-labelledby="target-heading">
+    <div class="pane__head">
+      <span class="step-tag">02 · LinkedIn</span>
+      <h2 id="target-heading" class="pane__title">Деловая переупаковка</h2>
+    </div>
+
+    <button
+      class="btn btn--primary"
+      hx-post="/repackage/linkedin"
+      hx-include="[name='source_text']"
+      hx-target="#linkedin-adapted"
+      hx-swap="outerHTML"
+      hx-disabled-elt="this"
+    >
+      Переупаковать для LinkedIn
+    </button>
+
+    <div id="linkedin-adapted" class="adapted">
+      <p class="adapted__hint">Адаптированный текст появится здесь — его можно отредактировать перед публикацией.</p>
+    </div>
+  </section>
+</main>
+{% endblock %}
