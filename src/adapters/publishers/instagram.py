@@ -15,7 +15,11 @@ from typing import Any, Callable
 from src.domain.errors import PublishError
 from src.domain.models import Channel, MediaFile, PublishResult
 
-GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
+# Instagram API with Instagram Login (graph.instagram.com) — the token is an
+# IGAA-prefixed Instagram User token, and ig_user_id is the app-scoped id from
+# GET /me. The two-step publish flow is identical to the Facebook-login Graph
+# API; only the host and token type differ.
+GRAPH_API_BASE = "https://graph.instagram.com/v21.0"
 
 
 class InstagramGraphPublisher:
