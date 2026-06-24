@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from src.application.commands.publish_post import PublishPostCommand
@@ -55,6 +55,21 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     @router.get("/health")
     async def health() -> JSONResponse:
         return JSONResponse({"status": "ok"})
+
+    # Public, unauthenticated: the Instagram Graph API fetches the image here
+    # server-side, so it cannot present a session cookie. The token is an
+    # unguessable handle into the transient store, valid only briefly.
+    @router.get("/media/{token}")
+    async def media(request: Request, token: str) -> Response:
+        store = request.app.state.container.media_store
+        media_file = store.get(token) if store is not None else None
+        if media_file is None:
+            return Response(status_code=404)
+        return Response(
+            content=media_file.data,
+            media_type=media_file.content_type,
+            headers={"Cache-Control": "private, max-age=600"},
+        )
 
     @router.get("/", response_class=HTMLResponse)
     async def index(request: Request, user: str = Depends(require_user)):

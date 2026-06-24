@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from src.adapters.media.transient_store import TransientMediaStore
 from src.adapters.publishers.factory import PublisherFactory
 from src.adapters.publishers.fake import FakePublisher
 from src.adapters.repositories.in_memory_post_repository import InMemoryPostRepository
@@ -34,6 +35,9 @@ class Settings:
     ig_user_id: str | None
     li_token: str | None
     li_author_urn: str | None
+    # Public HTTPS base of this app (e.g. a tunnel in dev). Required for real
+    # Instagram photo posts: Graph fetches the image from an app-served URL.
+    public_base_url: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -60,6 +64,7 @@ class Settings:
             ig_user_id=e.get("IG_USER_ID") or None,
             li_token=e.get("LI_TOKEN") or None,
             li_author_urn=e.get("LI_AUTHOR_URN") or None,
+            public_base_url=e.get("PUBLIC_BASE_URL") or None,
         )
 
 
@@ -71,6 +76,8 @@ class Container:
     post_repository: PostRepository
     content_adapter: ContentAdapterPort
     publisher_factory: PublisherFactory
+    # Transit-only hold for media the /media route serves to the Graph API.
+    media_store: "TransientMediaStore | None" = None
     # Resources (e.g. httpx clients) to close on app shutdown.
     closeables: tuple[Any, ...] = field(default=())
 
@@ -91,7 +98,9 @@ def _http_client():
     )
 
 
-def _build_publisher_factory(settings: Settings) -> tuple[PublisherFactory, tuple[Any, ...]]:
+def _build_publisher_factory(
+    settings: Settings, media_store: TransientMediaStore
+) -> tuple[PublisherFactory, tuple[Any, ...]]:
     """Real publishers when channel creds are present, else fakes.
 
     Returns the factory plus any http clients to close on shutdown.
@@ -102,13 +111,22 @@ def _build_publisher_factory(settings: Settings) -> tuple[PublisherFactory, tupl
     if settings.ig_token and settings.ig_user_id:
         from src.adapters.publishers.instagram import InstagramGraphPublisher
 
+        # Real media host when a public base URL is configured (e.g. a tunnel in
+        # dev); otherwise the Phase-1 stub that reports media hosting is absent.
+        if settings.public_base_url:
+            from src.adapters.media.app_served_media_host import AppServedMediaHost
+
+            resolve_image_url = AppServedMediaHost(media_store, settings.public_base_url).host
+        else:
+            resolve_image_url = _unconfigured_media_host
+
         client = _http_client()
         closeables.append(client)
         publishers[Channel.INSTAGRAM] = InstagramGraphPublisher(
             http_client=client,
             token=settings.ig_token,
             ig_user_id=settings.ig_user_id,
-            resolve_image_url=_unconfigured_media_host,
+            resolve_image_url=resolve_image_url,
         )
     else:
         publishers[Channel.INSTAGRAM] = FakePublisher(Channel.INSTAGRAM)
@@ -146,12 +164,14 @@ def _build_content_adapter(settings: Settings) -> ContentAdapterPort:
 
 def build_container(settings: Settings) -> Container:
     """Bind concrete adapters to ports. Extended by each feature slice."""
-    publisher_factory, closeables = _build_publisher_factory(settings)
+    media_store = TransientMediaStore()
+    publisher_factory, closeables = _build_publisher_factory(settings, media_store)
     return Container(
         settings=settings,
         post_repository=InMemoryPostRepository(),
         content_adapter=_build_content_adapter(settings),
         publisher_factory=publisher_factory,
+        media_store=media_store,
         closeables=closeables,
     )
 
@@ -162,6 +182,13 @@ def create_app(settings: Settings | None = None):
     # preserve the dependency direction (config wires entrypoints, not vice versa).
     from src.entrypoints.web.app import build_web_app
 
-    resolved = settings or Settings.from_env()
+    if settings is None:
+        # Load .env on real startup only; tests inject settings and skip this.
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        settings = Settings.from_env()
+
+    resolved = settings
     container = build_container(resolved)
     return build_web_app(container)
