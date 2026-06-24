@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 from src.domain.models import Channel, MediaFile, PublishResult
 
 LINKEDIN_API_BASE = "https://api.linkedin.com"
-LINKEDIN_VERSION = "202405"
+LINKEDIN_VERSION = "202506"
 
 
 def _is_trusted_upload_url(url: str) -> bool:
