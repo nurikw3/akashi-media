@@ -15,6 +15,7 @@ dependencies = [
     "itsdangerous==2.2.0",
     "httpx==0.28.1",
     "openai==1.59.6",
+    "python-dotenv>=1.2.2",
 ]
 
 [dependency-groups]
