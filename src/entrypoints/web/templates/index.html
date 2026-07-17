@@ -1,66 +1,105 @@
 {% extends "base.html" %}
-{% block title %}Композер — AkashiMedia{% endblock %}
+{% block title %}Главная — AkashiMedia{% endblock %}
 {% block body %}
-<header class="topbar">
-  <p class="brand-mark">明 AkashiMedia</p>
-  <div class="topbar__meta">
-    <span class="topbar__user">{{ user }}</span>
-    <form method="post" action="/logout" class="topbar__logout">
-      <button class="btn btn--ghost" type="submit">Выйти</button>
-    </form>
+<div class="notice-bar" role="status">
+  <span><strong>AkashiMedia workspace.</strong> Instagram и LinkedIn подключены к единому рабочему пространству.</span>
+  <a href="#create">Создать публикацию</a>
+</div>
+
+<div class="dashboard-shell">
+  <aside class="sidebar" aria-label="Основная навигация">
+    <a class="brand" href="/" aria-label="AkashiMedia — главная"><span class="brand__mark">A</span><span>AkashiMedia</span></a>
+    <button class="new-post" type="button" data-open-new-menu><span aria-hidden="true">＋</span> Новый пост</button>
+
+    <nav class="side-nav">
+      <a class="side-nav__item side-nav__item--active" href="/"><span class="nav-icon">⌂</span>Главная</a>
+      <button class="side-nav__item side-nav__button" type="button" data-open-new-menu><span class="nav-icon">✦</span>Создать</button>
+      <a class="side-nav__item" href="/digest"><span class="nav-icon">▤</span>Дайджест</a>
+      <span class="side-nav__item side-nav__item--future" aria-disabled="true"><span class="nav-icon">□</span>Календарь <small>скоро</small></span>
+      <span class="side-nav__item side-nav__item--future" aria-disabled="true"><span class="nav-icon">⌁</span>Аналитика <small>скоро</small></span>
+    </nav>
+
+    <section class="channels" aria-labelledby="channels-title">
+      <p id="channels-title">Ваши каналы</p>
+      <div class="channel-row"><span class="channel-icon channel-icon--instagram">◎</span><span>Instagram</span><i title="Готов к публикации"></i></div>
+      <div class="channel-row"><span class="channel-icon channel-icon--linkedin">in</span><span>LinkedIn</span><i title="Готов к публикации"></i></div>
+    </section>
+
+    <div class="sidebar__account">
+      <span class="account-avatar">{{ user[0]|upper }}</span>
+      <span><strong>{{ user }}</strong><small>Рабочее пространство</small></span>
+      <form method="post" action="/logout"><button class="icon-button" type="submit" title="Выйти" aria-label="Выйти">↪</button></form>
+    </div>
+  </aside>
+
+  <main class="dashboard-main" aria-label="Главная AkashiMedia">
+    <section class="welcome-panel" aria-labelledby="welcome-heading">
+      <div class="welcome-panel__eyebrow"><span class="welcome-sun" aria-hidden="true">☀</span> Рабочее пространство</div>
+      <h1 id="welcome-heading">Добро пожаловать, {{ user }}.</h1>
+      <p>Создавайте публикации для Instagram и LinkedIn из одного места.</p>
+    </section>
+
+    <section class="metric-strip" aria-label="Будущая статистика">
+      <article class="metric"><span class="metric__value">—</span><span><strong>Серия публикаций</strong><small>Появится с историей постов</small></span></article>
+      <article class="metric"><span class="metric__value">—</span><span><strong>Цель на неделю</strong><small>Планирование — скоро</small></span></article>
+      <article class="metric"><span class="metric__value">—</span><span><strong>Вовлечённость</strong><small>Аналитика — скоро</small></span></article>
+    </section>
+
+    <section class="setup-section" aria-labelledby="setup-heading">
+      <div class="section-heading"><div><p class="eyebrow">Быстрый старт</p><h2 id="setup-heading">Рабочий ритм</h2></div><button class="text-action text-action--button" type="button" data-open-post>Открыть редактор <span aria-hidden="true">→</span></button></div>
+      <div class="setup-grid">
+        <article class="setup-card"><span class="setup-card__number">01</span><h3>Каналы готовы</h3><p>Instagram и LinkedIn доступны для публикации через редактор.</p><span class="card-state card-state--done">✓ Подключены</span></article>
+        <article class="setup-card"><span class="setup-card__number">02</span><h3>Создайте пост</h3><p>Добавьте фото и текст, затем адаптируйте его под деловой стиль LinkedIn.</p><button class="text-action text-action--button" type="button" data-open-post>Открыть редактор →</button></article>
+        <article class="setup-card"><span class="setup-card__number">03</span><h3>Следите за отраслью</h3><p>IT-дайджест дата-центров собирает новые материалы и публикует их в Telegram.</p><a class="text-action" href="/digest">Открыть дайджест →</a></article>
+      </div>
+    </section>
+
+    <section class="overview-grid" aria-label="Обзор будущих функций">
+      <article class="empty-card"><div class="empty-card__head"><h2>Ближайшие публикации</h2><span class="future-label">скоро</span></div><div class="empty-card__body"><span class="empty-icon">□</span><p>Запланированных публикаций пока нет.</p><small>Календарь и отложенный постинг появятся в следующем этапе.</small></div></article>
+      <article class="empty-card"><div class="empty-card__head"><h2>Комментарии</h2><span class="future-label">скоро</span></div><div class="empty-card__body"><span class="empty-icon">◌</span><p>Входящих комментариев пока нет.</p><small>Единый inbox для Instagram и LinkedIn будет добавлен позже.</small></div></article>
+    </section>
+
+    <section class="ideas-panel" aria-labelledby="ideas-heading">
+      <div class="section-heading"><div><p class="eyebrow">Банк идей</p><h2 id="ideas-heading">Идеи для следующего поста</h2></div><button class="text-action text-action--button" type="button" data-open-idea>+ Новая идея</button></div>
+      <div id="ideas-list" class="ideas-list" aria-live="polite"><p class="ideas-empty">Пока нет сохранённых идей. Зафиксируйте первую, чтобы вернуться к ней позже.</p></div>
+    </section>
+  </main>
+</div>
+
+<div id="new-menu" class="new-menu" hidden>
+  <button type="button" data-open-post><span class="new-menu__icon new-menu__icon--post">▤</span><span><strong>Пост</strong><small>Создать публикацию для канала</small></span></button>
+  <button type="button" data-open-idea><span class="new-menu__icon new-menu__icon--idea">♧</span><span><strong>Идея</strong><small>Зафиксировать тему для будущего поста</small></span></button>
+</div>
+
+<dialog id="idea-dialog" class="app-dialog app-dialog--small" aria-labelledby="idea-dialog-title">
+  <form id="idea-form" class="dialog-form">
+    <div class="dialog-head"><div><p class="eyebrow">Банк идей</p><h2 id="idea-dialog-title">Новая идея</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Закрыть">×</button></div>
+    <p class="dialog-description">Идея сохранится в этом браузере — серверное хранилище добавим отдельным этапом.</p>
+    <label class="field"><span class="field__label">Короткий заголовок</span><input class="field__input" name="idea_title" maxlength="120" placeholder="Например: серия постов о PUE" required /></label>
+    <label class="field"><span class="field__label">Заметка</span><textarea class="field__textarea field__textarea--idea" name="idea_note" maxlength="1000" placeholder="Контекст, тезисы или ссылка…"></textarea></label>
+    <div class="dialog-actions"><button class="btn btn--ghost" type="button" data-close-dialog>Отмена</button><button class="btn btn--green" type="submit">Сохранить идею</button></div>
+  </form>
+</dialog>
+
+<dialog id="post-dialog" class="app-dialog app-dialog--post" aria-labelledby="post-dialog-title">
+  <div class="post-dialog">
+    <header class="post-dialog__head"><div><p class="eyebrow">Редактор публикаций</p><h2 id="post-dialog-title">Создать пост</h2></div><div class="post-dialog__actions"><span>Черновик</span><button class="dialog-close" type="button" data-close-dialog aria-label="Закрыть">×</button></div></header>
+    <div class="platform-tabs" role="tablist" aria-label="Платформа публикации">
+      <button class="platform-tab platform-tab--instagram is-active" type="button" role="tab" aria-selected="true" data-platform="instagram"><span class="channel-icon channel-icon--instagram">◎</span>Instagram</button>
+      <button class="platform-tab platform-tab--linkedin" type="button" role="tab" aria-selected="false" data-platform="linkedin"><span class="channel-icon channel-icon--linkedin">in</span>LinkedIn</button>
+    </div>
+    <div class="post-workspace">
+      <section class="post-editor" aria-label="Содержание публикации">
+        <form id="post-composer" class="composer-form" hx-post="/publish/instagram" hx-target="#instagram-result" hx-encoding="multipart/form-data" hx-disabled-elt="this">
+          <label class="field"><span class="field__label">Текст публикации</span><textarea class="field__textarea field__textarea--post" name="source_text" rows="10" placeholder="Начните писать пост…" required data-preview-source></textarea></label>
+          <label class="field field--dropzone"><span class="field__label" data-media-label>Медиа</span><input class="field__file" type="file" name="media" accept="image/*" required /></label>
+          <div class="post-action post-action--instagram"><button class="btn btn--instagram" type="submit">Опубликовать в Instagram</button></div>
+          <div class="post-action post-action--linkedin" hidden><p>Сначала создадим деловую версию на основе исходного текста.</p><button class="btn btn--linkedin" type="button" hx-post="/repackage/linkedin" hx-include="[name='source_text']" hx-target="#linkedin-adapted" hx-swap="outerHTML" hx-disabled-elt="this">✦ Адаптировать для LinkedIn</button><div id="linkedin-adapted" class="adapted"><p class="adapted__hint">Адаптированная версия появится здесь и будет доступна для редактирования.</p></div></div>
+        </form>
+        <div id="instagram-result" class="result" aria-live="polite"></div>
+      </section>
+      <aside class="post-preview" aria-labelledby="preview-title"><div class="post-preview__head"><h3 id="preview-title">Предпросмотр</h3><span data-preview-platform>Instagram</span></div><div class="preview-card"><div class="preview-card__profile"><span class="preview-avatar">A</span><span><strong>AkashiMedia</strong><small data-preview-platform>Instagram</small></span></div><div class="preview-card__copy" data-preview-text>Текст вашей публикации появится здесь.</div><div class="preview-card__media">Фото</div><div class="preview-card__meta">♡ &nbsp; ◌ &nbsp; ↗</div></div><p class="preview-hint">Предпросмотр обновляется во время набора текста.</p></aside>
+    </div>
   </div>
-</header>
-
-<main class="composer" aria-label="Композер публикаций">
-  <!-- Source pane: media + original copy → Instagram -->
-  <section class="pane pane--source" aria-labelledby="source-heading">
-    <div class="pane__head">
-      <span class="step-tag">01 · Источник</span>
-      <h2 id="source-heading" class="pane__title">Исходный пост</h2>
-    </div>
-
-    <form
-      class="composer-form"
-      hx-post="/publish/instagram"
-      hx-target="#instagram-result"
-      hx-encoding="multipart/form-data"
-      hx-disabled-elt="this"
-    >
-      <label class="field">
-        <span class="field__label">Медиафайл (фото)</span>
-        <input class="field__file" type="file" name="media" accept="image/*" required />
-      </label>
-      <label class="field">
-        <span class="field__label">Текст</span>
-        <textarea class="field__textarea" name="source_text" rows="9"
-          placeholder="Вставьте исходный текст поста…" required></textarea>
-      </label>
-      <button class="btn btn--accent" type="submit">Опубликовать в Instagram</button>
-    </form>
-    <div id="instagram-result" class="result" aria-live="polite"></div>
-  </section>
-
-  <!-- Target pane: AI repackage → LinkedIn -->
-  <section class="pane pane--target" aria-labelledby="target-heading">
-    <div class="pane__head">
-      <span class="step-tag">02 · LinkedIn</span>
-      <h2 id="target-heading" class="pane__title">Деловая переупаковка</h2>
-    </div>
-
-    <button
-      class="btn btn--primary"
-      hx-post="/repackage/linkedin"
-      hx-include="[name='source_text']"
-      hx-target="#linkedin-adapted"
-      hx-swap="outerHTML"
-      hx-disabled-elt="this"
-    >
-      Переупаковать для LinkedIn
-    </button>
-
-    <div id="linkedin-adapted" class="adapted">
-      <p class="adapted__hint">Адаптированный текст появится здесь — его можно отредактировать перед публикацией.</p>
-    </div>
-  </section>
-</main>
+</dialog>
 {% endblock %}

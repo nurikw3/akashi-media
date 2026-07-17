@@ -42,6 +42,16 @@ def test_index_renders_after_login(auth_client):
     assert "LinkedIn" in resp.text
 
 
+def test_digest_dashboard_is_login_protected_and_renders_stats(auth_client, client):
+    assert client.get("/digest").status_code == 303
+
+    response = auth_client.get("/digest")
+
+    assert response.status_code == 200
+    assert "Дайджест" in response.text
+    assert "Опубликовано" in response.text
+
+
 def test_logout_clears_session(auth_client):
     logout = auth_client.post("/logout")
     assert logout.status_code == 303

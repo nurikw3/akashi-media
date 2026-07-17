@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, FastAPI, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
@@ -49,6 +49,19 @@ def _read_media(upload: UploadFile) -> MediaFile:
     return MediaFile(filename=filename, content_type=content_type, data=data)
 
 
+def _buffer_text_placeholder() -> MediaFile:
+    """Satisfy the existing PublisherPort for Buffer's text-only mutation.
+
+    Buffer never receives this tiny valid JPEG: its LinkedIn mutation accepts
+    only text. Other publishers are never allowed to use this fallback.
+    """
+    return MediaFile(
+        filename="buffer-text-only.jpg",
+        content_type="image/jpeg",
+        data=b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
+    )
+
+
 def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     router = APIRouter()
 
@@ -75,6 +88,24 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     async def index(request: Request, user: str = Depends(require_user)):
         return templates.TemplateResponse(request, "index.html", {"user": user})
 
+    @router.get("/digest", response_class=HTMLResponse)
+    async def digest(request: Request, user: str = Depends(require_user)):
+        dashboard = request.app.state.container.digest_repository.dashboard()
+        return templates.TemplateResponse(
+            request,
+            "digest.html",
+            {"user": user, "dashboard": dashboard},
+        )
+
+    @router.get("/digest/partial", response_class=HTMLResponse)
+    async def digest_partial(request: Request, user: str = Depends(require_user)):
+        dashboard = request.app.state.container.digest_repository.dashboard()
+        return templates.TemplateResponse(
+            request,
+            "partials/digest_dashboard.html",
+            {"dashboard": dashboard},
+        )
+
     # Sync def: the LLM call is blocking I/O, so Starlette runs it in a
     # threadpool instead of stalling the event loop.
     @router.post("/repackage/linkedin", response_class=HTMLResponse)
@@ -98,7 +129,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
             {"adapted_text": adapted, "error": None},
         )
 
-    def _publish(request: Request, channel: Channel, text: str, media: UploadFile):
+    def _publish(request: Request, channel: Channel, text: str, media: UploadFile | None):
         """Shared publish flow for both channels: validate → command → fragment."""
         container = request.app.state.container
 
@@ -110,10 +141,20 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
         clean_text = text.strip()
         if not clean_text:
             return fragment(None, "Текст публикации пуст")
-        try:
-            media_file = _read_media(media)
-        except ValueError as exc:
-            return fragment(None, str(exc))
+        if media is None:
+            uses_buffer_for_linkedin = (
+                channel is Channel.LINKEDIN
+                and container.settings.buffer_api_key is not None
+                and container.settings.buffer_linkedin_channel_id is not None
+            )
+            if not uses_buffer_for_linkedin:
+                raise HTTPException(status_code=422, detail="Фото обязательно для этого канала")
+            media_file = _buffer_text_placeholder()
+        else:
+            try:
+                media_file = _read_media(media)
+            except ValueError as exc:
+                return fragment(None, str(exc))
 
         publisher = container.publisher_factory.create(channel)
         command = PublishPostCommand(
@@ -134,7 +175,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     def publish_linkedin(
         request: Request,
         linkedin_text: str = Form(..., max_length=20_000),
-        media: UploadFile = File(...),
+        media: UploadFile | None = File(default=None),
         user: str = Depends(require_user),
     ):
         return _publish(request, Channel.LINKEDIN, linkedin_text, media)

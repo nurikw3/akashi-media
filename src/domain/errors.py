@@ -17,3 +17,11 @@ class ContentAdaptationError(DomainError):
 
 class UnknownChannelError(DomainError):
     """No publisher is registered for the requested channel."""
+
+
+class NewsSourceError(DomainError):
+    """Fresh news could not be retrieved from the configured source."""
+
+
+class DigestCompositionError(DomainError):
+    """The LLM could not create a safe digest post from a source item."""

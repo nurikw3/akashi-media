@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Дайджест — AkashiMedia{% endblock %}
+{% block body %}
+<div class="notice-bar" role="status"><span><strong>IT-дайджест дата-центров.</strong> Новые материалы проверяются автоматически каждые 4 часа.</span><a href="/">К редактору</a></div>
+<div class="dashboard-shell">
+  <aside class="sidebar" aria-label="Основная навигация">
+    <a class="brand" href="/" aria-label="AkashiMedia — главная"><span class="brand__mark">A</span><span>AkashiMedia</span></a>
+    <a class="new-post" href="/"><span aria-hidden="true">＋</span> Новый пост</a>
+    <nav class="side-nav">
+      <a class="side-nav__item" href="/"><span class="nav-icon">⌂</span>Главная</a>
+      <a class="side-nav__item" href="/"><span class="nav-icon">✦</span>Создать</a>
+      <a class="side-nav__item side-nav__item--active" href="/digest"><span class="nav-icon">▤</span>Дайджест</a>
+      <span class="side-nav__item side-nav__item--future" aria-disabled="true"><span class="nav-icon">□</span>Календарь <small>скоро</small></span>
+      <span class="side-nav__item side-nav__item--future" aria-disabled="true"><span class="nav-icon">⌁</span>Аналитика <small>скоро</small></span>
+    </nav>
+    <section class="channels" aria-labelledby="digest-channels-title"><p id="digest-channels-title">Ваши каналы</p><div class="channel-row"><span class="channel-icon channel-icon--instagram">◎</span><span>Instagram</span><i></i></div><div class="channel-row"><span class="channel-icon channel-icon--linkedin">in</span><span>LinkedIn</span><i></i></div></section>
+    <div class="sidebar__account"><span class="account-avatar">{{ user[0]|upper }}</span><span><strong>{{ user }}</strong><small>Рабочее пространство</small></span><form method="post" action="/logout"><button class="icon-button" type="submit" title="Выйти" aria-label="Выйти">↪</button></form></div>
+  </aside>
+  <main class="dashboard-main digest-page" aria-label="IT-дайджест дата-центров">
+    <section class="digest-page__intro"><p class="eyebrow">Дата-центры · Telegram</p><h1>Дайджест</h1><p>История источников, статус публикаций и автоматические проверки в одном месте.</p></section>
+    {% include "partials/digest_dashboard.html" %}
+  </main>
+</div>
+{% endblock %}

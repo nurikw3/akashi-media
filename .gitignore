@@ -15,6 +15,7 @@ env/
 .env
 .env.*
 !.env.example
+keys.txt
 
 # Test / coverage
 .pytest_cache/

@@ -1,0 +1,59 @@
+<section
+  id="digest-dashboard"
+  hx-get="/digest/partial"
+  hx-trigger="every 60s"
+  hx-swap="outerHTML"
+  aria-live="polite"
+>
+  <div class="digest-stats">
+    <article class="digest-stat">
+      <span>Опубликовано</span>
+      <strong>{{ dashboard.total_published }}</strong>
+      <small>за всё время</small>
+    </article>
+    <article class="digest-stat">
+      <span>Сегодня</span>
+      <strong>{{ dashboard.published_today }}</strong>
+      <small>по UTC</small>
+    </article>
+    <article class="digest-stat digest-stat--wide">
+      <span>Последняя проверка</span>
+      {% if dashboard.last_run %}
+        <strong>{{ dashboard.last_run.finished_at.strftime('%d.%m.%Y %H:%M UTC') }}</strong>
+        <small>{{ dashboard.last_run.trigger }} · опубликовано {{ dashboard.last_run.published }}, ошибок {{ dashboard.last_run.failed }}</small>
+      {% else %}
+        <strong>Ещё не было</strong>
+        <small>Первая проверка создаст базу уже известных материалов.</small>
+      {% endif %}
+    </article>
+  </div>
+
+  <section class="digest-history" aria-labelledby="digest-history-title">
+    <div class="digest-history__head">
+      <h2 id="digest-history-title">История материалов</h2>
+      <span>{{ dashboard.publications|length }} последних записей</span>
+    </div>
+    {% if dashboard.publications %}
+      <div class="digest-table-wrap">
+        <table class="digest-table">
+          <thead>
+            <tr><th>Материал</th><th>Источник</th><th>Дата статьи</th><th>Статус</th><th>Добавлен</th></tr>
+          </thead>
+          <tbody>
+            {% for item in dashboard.publications %}
+              <tr>
+                <td><a href="{{ item.source_url }}" target="_blank" rel="noreferrer">{{ item.title }}</a></td>
+                <td>{{ item.source_name }}</td>
+                <td>{{ item.source_published_at or '—' }}</td>
+                <td><span class="status status--{{ item.status }}">{{ {'published': 'Опубликован', 'pending': 'В обработке', 'failed': 'Ошибка', 'baseline': 'База'}[item.status] }}</span></td>
+                <td>{{ item.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="digest-empty">История появится после первого запуска бота или фоновой проверки.</p>
+    {% endif %}
+  </section>
+</section>
