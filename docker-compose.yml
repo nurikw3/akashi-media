@@ -46,31 +46,33 @@ services:
         condition: service_completed_successfully
 
   telegram-bot:
+    profiles: ["digest"]
     build: .
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://akashimedia:${POSTGRES_PASSWORD:-akashimedia_dev}@db:5432/akashimedia
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
-      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:?TELEGRAM_CHANNEL_ID is required}
-      TELEGRAM_CONTROL_CHAT_ID: ${TELEGRAM_CONTROL_CHAT_ID:?TELEGRAM_CONTROL_CHAT_ID is required}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:?TAVILY_API_KEY is required}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:-}
+      TELEGRAM_CONTROL_CHAT_ID: ${TELEGRAM_CONTROL_CHAT_ID:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     command: python -m src.entrypoints.telegram.bot
     depends_on:
       migrate:
         condition: service_completed_successfully
 
   digest-worker:
+    profiles: ["digest"]
     build: .
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://akashimedia:${POSTGRES_PASSWORD:-akashimedia_dev}@db:5432/akashimedia
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
-      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:?TELEGRAM_CHANNEL_ID is required}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:?TAVILY_API_KEY is required}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     command: python -m src.entrypoints.digest.worker
     depends_on:
       migrate:
