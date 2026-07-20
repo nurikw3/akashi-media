@@ -13,7 +13,7 @@ app = create_app()
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("src.entrypoints.web.server:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("src.entrypoints.web.server:app", host="127.0.0.1", port=8001, reload=True)
 
 
 if __name__ == "__main__":

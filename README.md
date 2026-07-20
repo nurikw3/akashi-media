@@ -43,7 +43,7 @@ src/
 ```bash
 uv sync                     # создаёт .venv и ставит зависимости (вкл. dev)
 cp .env.example .env        # заполнить APP_USERNAME/APP_PASSWORD/APP_SECRET_KEY (>=32)
-uv run python -m src.entrypoints.web.server   # http://127.0.0.1:8000
+uv run python -m src.entrypoints.web.server   # http://127.0.0.1:8001
 ```
 
 Без `OPENAI_API_KEY` / ключей каналов приложение работает на
@@ -127,7 +127,7 @@ uv run python -m src.entrypoints.telegram.bot
 
 ### Docker Compose: сайт, бот, worker и PostgreSQL
 
-Docker Compose поднимает четыре процесса: сайт на `http://localhost:8000`,
+Docker Compose поднимает четыре процесса: сайт на `http://localhost:8001`,
 PostgreSQL, long-polling Telegram-бот и отдельный worker. Миграция выполняется
 один раз до старта сервисов. Worker сразу создаёт базу уже найденных статей
 без публикации, а затем делает проверку каждые 4 часа; последующие
