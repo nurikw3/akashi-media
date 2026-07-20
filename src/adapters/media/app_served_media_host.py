@@ -1,9 +1,9 @@
-"""AppServedMediaHost — resolves a MediaFile to a public URL served by this app.
+"""Resolve a MediaFile to a short-lived public URL served by this app.
 
-Satisfies the InstagramGraphPublisher's `resolve_image_url` seam. Bytes go into a
-TransientMediaStore; the returned URL points at this app's own /media/{token}
-route, which the Graph API fetches server-side. Keeping the host app-owned is the
-SSRF guard the publisher documents: no user-controlled host ever reaches Graph.
+Bytes go into a TransientMediaStore; the returned URL points at this app's own
+``/media/{token}`` route for Instagram Graph or Buffer to fetch server-side.
+Keeping the host app-owned prevents user-controlled hosts from reaching either
+publishing API.
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ from src.domain.models import MediaFile
 
 class AppServedMediaHost:
     def __init__(self, store: TransientMediaStore, public_base_url: str) -> None:
-        # Graph fetches over HTTPS only; a non-HTTPS base would silently fail the
-        # fetch, so reject it loudly at construction (composition root) instead.
+        # Publishing APIs fetch over HTTPS; reject a non-HTTPS base loudly at
+        # construction (composition root) instead of failing later.
         if not public_base_url.startswith("https://"):
-            raise PublishError("PUBLIC_BASE_URL must be an https:// URL for Instagram media")
+            raise PublishError("PUBLIC_BASE_URL must be an https:// URL for media publishing")
         self._store = store
         self._base = public_base_url.rstrip("/")
 

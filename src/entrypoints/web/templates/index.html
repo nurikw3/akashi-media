@@ -28,6 +28,7 @@
     <div class="sidebar__account">
       <span class="account-avatar">{{ user[0]|upper }}</span>
       <span><strong>{{ user }}</strong><small>Рабочее пространство</small></span>
+      <button class="icon-button theme-toggle" type="button" data-theme-toggle title="Включить светлую тему" aria-label="Включить светлую тему"><span aria-hidden="true" data-theme-icon>☀</span></button>
       <form method="post" action="/logout"><button class="icon-button" type="submit" title="Выйти" aria-label="Выйти">↪</button></form>
     </div>
   </aside>
@@ -60,7 +61,7 @@
     </section>
 
     <section class="ideas-panel" aria-labelledby="ideas-heading">
-      <div class="section-heading"><div><p class="eyebrow">Банк идей</p><h2 id="ideas-heading">Идеи для следующего поста</h2></div><button class="text-action text-action--button" type="button" data-open-idea>+ Новая идея</button></div>
+      <div class="section-heading"><div><p class="eyebrow">Банк идей</p><h2 id="ideas-heading">Идеи для следующего поста</h2></div><div><button class="text-action text-action--button" type="button" data-open-ai>✦ Сгенерировать идеи</button><button class="text-action text-action--button" type="button" data-open-idea>+ Новая идея</button></div></div>
       <div id="ideas-list" class="ideas-list" aria-live="polite"><p class="ideas-empty">Пока нет сохранённых идей. Зафиксируйте первую, чтобы вернуться к ней позже.</p></div>
     </section>
   </main>
@@ -81,9 +82,20 @@
   </form>
 </dialog>
 
+<dialog id="ai-dialog" class="app-dialog app-dialog--post" aria-labelledby="ai-dialog-title">
+  <form class="dialog-form" hx-post="/content/generate" hx-target="#ai-content-result" hx-swap="outerHTML" hx-disabled-elt="this">
+    <div class="dialog-head"><div><p class="eyebrow">AKASHI Content System</p><h2 id="ai-dialog-title">AI-редактор</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Закрыть">×</button></div>
+    <p class="dialog-description">Выберите сценарий и добавьте контекст. Модель пометит факты, которые нужно подтвердить.</p>
+    <label class="field"><span class="field__label">Сценарий</span><select class="field__input" name="task" data-ai-task><option value="create_post">Создать пост с нуля</option><option value="generate_ideas">Сгенерировать идеи</option><option value="edit_draft">Отредактировать черновик</option><option value="instagram_to_linkedin">Instagram → LinkedIn</option><option value="linkedin_to_instagram">LinkedIn → Instagram</option></select></label>
+    <label class="field"><span class="field__label">Бриф</span><textarea class="field__textarea field__textarea--post" name="brief" rows="10" maxlength="8000" required placeholder="Платформа, цель, аудитория, тема, подтверждённые факты и ссылки, язык, CTA, ограничения…"></textarea></label>
+    <div class="dialog-actions"><button class="btn btn--ghost" type="button" data-close-dialog>Отмена</button><button class="btn btn--primary" type="submit">✦ Сгенерировать</button></div>
+    <div id="ai-content-result" class="adapted" aria-live="polite"></div>
+  </form>
+</dialog>
+
 <dialog id="post-dialog" class="app-dialog app-dialog--post" aria-labelledby="post-dialog-title">
   <div class="post-dialog">
-    <header class="post-dialog__head"><div><p class="eyebrow">Редактор публикаций</p><h2 id="post-dialog-title">Создать пост</h2></div><div class="post-dialog__actions"><span>Черновик</span><button class="dialog-close" type="button" data-close-dialog aria-label="Закрыть">×</button></div></header>
+    <header class="post-dialog__head"><div><p class="eyebrow">Редактор публикаций</p><h2 id="post-dialog-title">Создать пост</h2></div><div class="post-dialog__actions"><span>Черновик</span><button class="theme-switch" type="button" data-theme-toggle aria-label="Включить светлую тему"><span aria-hidden="true" data-theme-icon>☀</span><span data-theme-label>Светлая</span></button><button class="dialog-close" type="button" data-close-dialog aria-label="Закрыть">×</button></div></header>
     <div class="platform-tabs" role="tablist" aria-label="Платформа публикации">
       <button class="platform-tab platform-tab--instagram is-active" type="button" role="tab" aria-selected="true" data-platform="instagram"><span class="channel-icon channel-icon--instagram">◎</span>Instagram</button>
       <button class="platform-tab platform-tab--linkedin" type="button" role="tab" aria-selected="false" data-platform="linkedin"><span class="channel-icon channel-icon--linkedin">in</span>LinkedIn</button>
@@ -92,13 +104,38 @@
       <section class="post-editor" aria-label="Содержание публикации">
         <form id="post-composer" class="composer-form" hx-post="/publish/instagram" hx-target="#instagram-result" hx-encoding="multipart/form-data" hx-disabled-elt="this">
           <label class="field"><span class="field__label">Текст публикации</span><textarea class="field__textarea field__textarea--post" name="source_text" rows="10" placeholder="Начните писать пост…" required data-preview-source></textarea></label>
-          <label class="field field--dropzone"><span class="field__label" data-media-label>Медиа</span><input class="field__file" type="file" name="media" accept="image/*" required /></label>
-          <div class="post-action post-action--instagram"><button class="btn btn--instagram" type="submit">Опубликовать в Instagram</button></div>
+          <div class="field media-field"><div class="media-field__head"><div><span class="field__label" data-media-label>Медиа</span><small data-media-guidance>До 10 фото для карусели</small></div><button class="media-clear" type="button" data-clear-media hidden>Очистить всё</button></div><div class="media-picker"><label class="dropzone" data-dropzone><input class="field__file" type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif" multiple required /><span class="dropzone__icon" aria-hidden="true">▧<b>+</b></span><span class="dropzone__copy">Перетащите фото<br />или <em>выберите файлы</em></span><span class="dropzone__hint" data-file-list>JPG, PNG, WEBP, GIF · до 64 МБ</span></label><div class="dropzone__previews" data-file-previews aria-live="polite"></div></div></div>
+          <div class="post-action post-action--instagram"><button class="btn btn--instagram" type="submit">Опубликовать в Instagram</button><button class="btn btn--ghost" type="button" data-open-post-ai>✦ AI-редактор</button></div>
           <div class="post-action post-action--linkedin" hidden><p>Сначала создадим деловую версию на основе исходного текста.</p><button class="btn btn--linkedin" type="button" hx-post="/repackage/linkedin" hx-include="[name='source_text']" hx-target="#linkedin-adapted" hx-swap="outerHTML" hx-disabled-elt="this">✦ Адаптировать для LinkedIn</button><div id="linkedin-adapted" class="adapted"><p class="adapted__hint">Адаптированная версия появится здесь и будет доступна для редактирования.</p></div></div>
         </form>
         <div id="instagram-result" class="result" aria-live="polite"></div>
       </section>
-      <aside class="post-preview" aria-labelledby="preview-title"><div class="post-preview__head"><h3 id="preview-title">Предпросмотр</h3><span data-preview-platform>Instagram</span></div><div class="preview-card"><div class="preview-card__profile"><span class="preview-avatar">A</span><span><strong>AkashiMedia</strong><small data-preview-platform>Instagram</small></span></div><div class="preview-card__copy" data-preview-text>Текст вашей публикации появится здесь.</div><div class="preview-card__media">Фото</div><div class="preview-card__meta">♡ &nbsp; ◌ &nbsp; ↗</div></div><p class="preview-hint">Предпросмотр обновляется во время набора текста.</p></aside>
+      <aside class="post-preview" aria-label="Боковая панель редактора">
+        <div class="post-side-tabs" role="tablist" aria-label="Инструменты редактора"><button class="post-side-tab is-active" type="button" data-show-side="preview">Предпросмотр</button><button class="post-side-tab" type="button" data-show-side="ai">✦ AI-редактор</button></div>
+        <section data-side-panel="preview">
+          <div class="post-preview__head"><h3 id="preview-title">Post Previews</h3><span data-preview-platform>Instagram</span></div>
+          <div class="network-preview" data-network-preview="instagram">
+            <p class="network-preview__label"><span aria-hidden="true">◎</span> Instagram</p>
+            <article class="instagram-preview">
+              <header class="instagram-preview__profile"><span class="instagram-preview__avatar">A</span><strong>nurassyltest</strong><span aria-hidden="true">•••</span></header>
+              <div class="instagram-preview__media" data-preview-media><span>Добавьте фотографии</span></div>
+              <div class="instagram-preview__actions"><span>♡</span><span>◯</span><span>↗</span><span class="instagram-preview__save">♧</span></div>
+              <div class="instagram-preview__caption"><strong>nurassyltest</strong> <span data-preview-text>Текст вашей публикации появится здесь.</span></div>
+            </article>
+          </div>
+          <div class="network-preview" data-network-preview="linkedin" hidden>
+            <p class="network-preview__label"><span class="linkedin-mark">in</span> LinkedIn</p>
+            <article class="linkedin-preview">
+              <header class="linkedin-preview__profile"><span class="linkedin-preview__avatar">A</span><span><strong>Linketron</strong><small>1 ч. · ◉</small></span></header>
+              <div class="linkedin-preview__copy" data-preview-text>Текст вашей публикации появится здесь.</div>
+              <div class="linkedin-preview__document" data-preview-media><span>Добавьте фотографии</span></div>
+              <div class="linkedin-preview__actions"><span class="linkedin-preview__mini-avatar">A</span><span>♧<small>Like</small></span><span>▣<small>Comment</small></span><span>↻<small>Repost</small></span><span>➤<small>Send</small></span></div>
+            </article>
+          </div>
+          <p class="preview-hint">Предпросмотр показывает структуру поста; финальные шрифты могут немного отличаться.</p>
+        </section>
+        <section class="post-ai-panel" data-side-panel="ai" hidden><div class="post-ai-panel__intro"><p class="eyebrow">AKASHI Content System</p><h3>AI-редактор</h3><p>Опишите задачу, аудиторию и подтверждённые факты.</p></div><form class="post-ai-form" hx-post="/content/generate" hx-target="#post-ai-content-result" hx-swap="innerHTML" hx-disabled-elt="this"><label class="field"><span class="field__label">Сценарий</span><select class="field__input" name="task" data-post-ai-task><option value="create_post">Создать пост с нуля</option><option value="edit_draft">Отредактировать черновик</option><option value="instagram_to_linkedin">Instagram → LinkedIn</option><option value="linkedin_to_instagram">LinkedIn → Instagram</option><option value="generate_ideas">Сгенерировать идеи</option></select></label><label class="field"><span class="field__label">Что нужно подготовить?</span><textarea class="field__textarea post-ai-brief" name="brief" rows="8" maxlength="8000" required data-post-ai-brief placeholder="Например: пост для CIO о резервировании. Цель — объяснить снижение риска простоя…"></textarea></label><button class="btn btn--green btn--block" type="submit">✦ Сгенерировать</button><div id="post-ai-content-result" aria-live="polite"></div></form></section>
+      </aside>
     </div>
   </div>
 </dialog>

@@ -29,3 +29,17 @@ class FakePublisher:
                 detail="Опубликовано (тестовый адаптер)",
             )
         return PublishResult.failed(self._channel, detail="Тестовая ошибка публикации")
+
+    def publish_many(self, text: str, media: tuple[MediaFile, ...]) -> PublishResult:
+        # Keep the fake useful for HTTP tests while retaining all selected assets.
+        for item in media:
+            self.published.append((text, item))
+        if not media:
+            return PublishResult.failed(self._channel, detail="Нет медиа")
+        if self._succeed:
+            return PublishResult.ok(
+                self._channel,
+                external_id=f"fake-{self._channel.value}-1",
+                detail="Опубликовано (тестовый адаптер)",
+            )
+        return PublishResult.failed(self._channel, detail="Тестовая ошибка публикации")

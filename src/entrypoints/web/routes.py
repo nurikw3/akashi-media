@@ -13,12 +13,15 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from src.application.commands.publish_post import PublishPostCommand
+from src.application.commands.generate_akashi_content import GenerateAkashiContentCommand
 from src.application.commands.repackage_for_linkedin import RepackageForLinkedInCommand
 from src.domain.errors import ContentAdaptationError
-from src.domain.models import Channel, MediaFile
+from src.domain.models import Channel, ContentTask, MediaFile
 from src.entrypoints.web.auth import require_user
 
 MAX_MEDIA_BYTES = 8 * 1024 * 1024  # 8 MB
+MAX_MEDIA_FILES = 10
+MAX_TOTAL_MEDIA_BYTES = 64 * 1024 * 1024
 
 # Magic-byte signatures — defend against a forged Content-Type header.
 _MEDIA_MAGIC: dict[str, tuple[bytes, ...]] = {
@@ -49,19 +52,6 @@ def _read_media(upload: UploadFile) -> MediaFile:
     return MediaFile(filename=filename, content_type=content_type, data=data)
 
 
-def _buffer_text_placeholder() -> MediaFile:
-    """Satisfy the existing PublisherPort for Buffer's text-only mutation.
-
-    Buffer never receives this tiny valid JPEG: its LinkedIn mutation accepts
-    only text. Other publishers are never allowed to use this fallback.
-    """
-    return MediaFile(
-        filename="buffer-text-only.jpg",
-        content_type="image/jpeg",
-        data=b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
-    )
-
-
 def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     router = APIRouter()
 
@@ -72,6 +62,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     # Public, unauthenticated: the Instagram Graph API fetches the image here
     # server-side, so it cannot present a session cookie. The token is an
     # unguessable handle into the transient store, valid only briefly.
+    @router.head("/media/{token}")
     @router.get("/media/{token}")
     async def media(request: Request, token: str) -> Response:
         store = request.app.state.container.media_store
@@ -79,9 +70,12 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
         if media_file is None:
             return Response(status_code=404)
         return Response(
-            content=media_file.data,
+            content=b"" if request.method == "HEAD" else media_file.data,
             media_type=media_file.content_type,
-            headers={"Cache-Control": "private, max-age=600"},
+            headers={
+                "Cache-Control": "private, max-age=600",
+                "Content-Length": str(len(media_file.data)),
+            },
         )
 
     @router.get("/", response_class=HTMLResponse)
@@ -129,7 +123,37 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
             {"adapted_text": adapted, "error": None},
         )
 
-    def _publish(request: Request, channel: Channel, text: str, media: UploadFile | None):
+    @router.post("/content/generate", response_class=HTMLResponse)
+    def generate_content(
+        request: Request,
+        task: str = Form(...),
+        brief: str = Form(..., max_length=20_000),
+        user: str = Depends(require_user),
+    ):
+        try:
+            resolved_task = ContentTask(task)
+            generated = GenerateAkashiContentCommand(
+                request.app.state.container.content_adapter
+            ).execute(resolved_task, brief)
+        except ValueError:
+            return templates.TemplateResponse(
+                request,
+                "partials/ai_content_result.html",
+                {"generated": None, "error": "Неизвестный сценарий генерации. Обновите страницу и попробуйте ещё раз."},
+            )
+        except ContentAdaptationError:
+            return templates.TemplateResponse(
+                request,
+                "partials/ai_content_result.html",
+                {"generated": None, "error": "Не удалось связаться с OpenAI. Повторите запрос через несколько секунд."},
+            )
+        return templates.TemplateResponse(
+            request,
+            "partials/ai_content_result.html",
+            {"generated": generated, "error": None},
+        )
+
+    def _publish(request: Request, channel: Channel, text: str, media: list[UploadFile] | None):
         """Shared publish flow for both channels: validate → command → fragment."""
         container = request.app.state.container
 
@@ -141,32 +165,37 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
         clean_text = text.strip()
         if not clean_text:
             return fragment(None, "Текст публикации пуст")
-        if media is None:
-            uses_buffer_for_linkedin = (
-                channel is Channel.LINKEDIN
-                and container.settings.buffer_api_key is not None
-                and container.settings.buffer_linkedin_channel_id is not None
-            )
-            if not uses_buffer_for_linkedin:
-                raise HTTPException(status_code=422, detail="Фото обязательно для этого канала")
-            media_file = _buffer_text_placeholder()
-        else:
-            try:
-                media_file = _read_media(media)
-            except ValueError as exc:
-                return fragment(None, str(exc))
+        if not media:
+            raise HTTPException(status_code=422, detail="Фото обязательно для этого канала")
+        if len(media) > MAX_MEDIA_FILES:
+            return fragment(None, f"Можно выбрать не более {MAX_MEDIA_FILES} фото")
+        try:
+            media_files = tuple(_read_media(upload) for upload in media)
+            if sum(len(item.data) for item in media_files) > MAX_TOTAL_MEDIA_BYTES:
+                return fragment(None, "Общий размер фотографий не должен превышать 64 МБ")
+            if channel is Channel.LINKEDIN:
+                if container.media_converter is None:
+                    raise ValueError("PDF-конвертер не настроен")
+                publish_media = (
+                    container.media_converter.images_to_pdf(media_files),
+                    media_files[0],
+                )
+            else:
+                publish_media = media_files
+        except ValueError as exc:
+            return fragment(None, str(exc))
 
         publisher = container.publisher_factory.create(channel)
         command = PublishPostCommand(
             publisher=publisher, post_repository=container.post_repository
         )
-        return fragment(command.execute(clean_text, media_file), None)
+        return fragment(command.execute(clean_text, publish_media), None)
 
     @router.post("/publish/instagram", response_class=HTMLResponse)
     def publish_instagram(
         request: Request,
         source_text: str = Form(..., max_length=20_000),
-        media: UploadFile = File(...),
+        media: list[UploadFile] = File(...),
         user: str = Depends(require_user),
     ):
         return _publish(request, Channel.INSTAGRAM, source_text, media)
@@ -175,7 +204,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates) -> None:
     def publish_linkedin(
         request: Request,
         linkedin_text: str = Form(..., max_length=20_000),
-        media: UploadFile | None = File(default=None),
+        media: list[UploadFile] | None = File(default=None),
         user: str = Depends(require_user),
     ):
         return _publish(request, Channel.LINKEDIN, linkedin_text, media)

@@ -1,8 +1,7 @@
 """Live Instagram publish — opt-in, skipped unless real credentials are present.
 
-Phase-1 decision: real Graph calls live behind this skipped test until tokens
-are configured. Needs IG_TOKEN, IG_USER_ID and a publicly reachable TEST_IMAGE_URL
-(Graph requires a hosted image_url — Phase-1 has no media host).
+Real Graph calls live behind this skipped test until tokens are configured.
+Needs IG_TOKEN, IG_USER_ID and a publicly reachable TEST_IMAGE_URL.
 
 Run with: IG_TOKEN=... IG_USER_ID=... TEST_IMAGE_URL=... pytest tests/integration -m live
 """

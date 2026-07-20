@@ -1,6 +1,12 @@
+from dataclasses import replace
+
 import pytest
 
-from src.config import DigestSettings, Settings
+from src.adapters.publishers.buffer import BufferPublisher
+from src.adapters.publishers.instagram import InstagramGraphPublisher
+from src.adapters.publishers.linkedin import LinkedInPublisher
+from src.config import DigestSettings, Settings, build_container
+from src.domain.models import Channel
 
 
 def test_from_env_reads_required_and_optional():
@@ -18,6 +24,24 @@ def test_from_env_reads_required_and_optional():
     assert settings.ig_token is None  # absent → None
     assert settings.database_url is None
     assert settings.buffer_api_key is None
+    assert settings.buffer_instagram_channel_id is None
+
+
+def test_from_env_reads_buffer_channel_ids_and_normalizes_blanks():
+    settings = Settings.from_env(
+        {
+            "APP_USERNAME": "u",
+            "APP_PASSWORD": "p",
+            "APP_SECRET_KEY": "x" * 32,
+            "BUFFER_API_KEY": " key ",
+            "BUFFER_LINKEDIN_CHANNEL_ID": " linkedin-id ",
+            "BUFFER_INSTAGRAM_CHANNEL_ID": " instagram-id ",
+        }
+    )
+
+    assert settings.buffer_api_key == "key"
+    assert settings.buffer_linkedin_channel_id == "linkedin-id"
+    assert settings.buffer_instagram_channel_id == "instagram-id"
 
 
 @pytest.mark.parametrize("missing", ["APP_USERNAME", "APP_PASSWORD", "APP_SECRET_KEY"])
@@ -58,3 +82,53 @@ def test_digest_settings_reject_invalid_post_limit(value):
     }
     with pytest.raises(RuntimeError, match="DIGEST_POST_LIMIT"):
         DigestSettings.from_env(env)
+
+
+class _HttpClient:
+    def close(self):
+        pass
+
+
+def test_buffer_publishers_have_priority_for_each_configured_channel(settings, monkeypatch):
+    monkeypatch.setattr("src.config._http_client", _HttpClient)
+    configured = replace(
+        settings,
+        public_base_url="https://akashi.example",
+        buffer_api_key="buffer-key",
+        buffer_instagram_channel_id="buffer-instagram",
+        buffer_linkedin_channel_id="buffer-linkedin",
+        ig_token="ig-token",
+        ig_user_id="ig-user",
+        li_token="li-token",
+        li_author_urn="urn:li:person:1",
+    )
+
+    container = build_container(configured)
+
+    instagram = container.publisher_factory.create(Channel.INSTAGRAM)
+    linkedin = container.publisher_factory.create(Channel.LINKEDIN)
+    assert isinstance(instagram, BufferPublisher)
+    assert isinstance(linkedin, BufferPublisher)
+    assert instagram.channel is Channel.INSTAGRAM
+    assert linkedin.channel is Channel.LINKEDIN
+    assert len(container.closeables) == 2
+
+
+def test_direct_publishers_remain_fallbacks_without_buffer_channel_ids(settings, monkeypatch):
+    monkeypatch.setattr("src.config._http_client", _HttpClient)
+    configured = replace(
+        settings,
+        public_base_url="https://akashi.example",
+        buffer_api_key="buffer-key",
+        ig_token="ig-token",
+        ig_user_id="ig-user",
+        li_token="li-token",
+        li_author_urn="urn:li:person:1",
+    )
+
+    container = build_container(configured)
+
+    assert isinstance(
+        container.publisher_factory.create(Channel.INSTAGRAM), InstagramGraphPublisher
+    )
+    assert isinstance(container.publisher_factory.create(Channel.LINKEDIN), LinkedInPublisher)

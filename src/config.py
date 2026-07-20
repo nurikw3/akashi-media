@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import inspect
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from src.adapters.media.transient_store import TransientMediaStore
+from src.adapters.media.pillow_pdf import PillowPdfConverter
 from src.adapters.publishers.factory import PublisherFactory
 from src.adapters.publishers.fake import FakePublisher
 from src.adapters.repositories.in_memory_digest_repository import InMemoryDigestRepository
@@ -22,6 +24,7 @@ from src.domain.ports.content_adapter import ContentAdapterPort
 from src.domain.ports.digest_repository import DigestRepositoryPort
 from src.domain.ports.post_repository import PostRepository
 from src.domain.ports.publisher import PublisherPort
+from src.domain.ports.media_converter import MediaConverterPort
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +48,7 @@ class Settings:
     database_url: str | None = None
     buffer_api_key: str | None = None
     buffer_linkedin_channel_id: str | None = None
+    buffer_instagram_channel_id: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -79,8 +83,13 @@ class Settings:
             public_base_url=e.get("PUBLIC_BASE_URL") or None,
             openai_base_url=openai_base_url,
             database_url=e.get("DATABASE_URL") or None,
-            buffer_api_key=e.get("BUFFER_API_KEY") or None,
-            buffer_linkedin_channel_id=e.get("BUFFER_LINKEDIN_CHANNEL_ID") or None,
+            buffer_api_key=(e.get("BUFFER_API_KEY") or "").strip() or None,
+            buffer_linkedin_channel_id=(
+                (e.get("BUFFER_LINKEDIN_CHANNEL_ID") or "").strip() or None
+            ),
+            buffer_instagram_channel_id=(
+                (e.get("BUFFER_INSTAGRAM_CHANNEL_ID") or "").strip() or None
+            ),
         )
 
 
@@ -151,15 +160,16 @@ class Container:
     digest_repository: DigestRepositoryPort
     # Transit-only hold for media the /media route serves to the Graph API.
     media_store: "TransientMediaStore | None" = None
+    media_converter: MediaConverterPort | None = None
     # Resources (e.g. httpx clients) to close on app shutdown.
     closeables: tuple[Any, ...] = field(default=())
 
 
 def _unconfigured_media_host(_media: MediaFile) -> str:
-    # Phase 1 has no media hosting; the Graph API needs a public image URL.
+    # External publishing APIs fetch image assets from a public URL.
     from src.domain.errors import PublishError
 
-    raise PublishError("Media hosting is not configured (Phase 2)")
+    raise PublishError("PUBLIC_BASE_URL не настроен для публикации изображения")
 
 
 def _http_client():
@@ -181,17 +191,27 @@ def _build_publisher_factory(
     publishers: dict[Channel, PublisherPort] = {}
     closeables: list[Any] = []
 
-    if settings.ig_token and settings.ig_user_id:
-        from src.adapters.publishers.instagram import InstagramGraphPublisher
-
-        # Real media host when a public base URL is configured (e.g. a tunnel in
-        # dev); otherwise the Phase-1 stub that reports media hosting is absent.
+    def image_url_resolver() -> Callable[[MediaFile], str]:
         if settings.public_base_url:
             from src.adapters.media.app_served_media_host import AppServedMediaHost
 
-            resolve_image_url = AppServedMediaHost(media_store, settings.public_base_url).host
-        else:
-            resolve_image_url = _unconfigured_media_host
+            return AppServedMediaHost(media_store, settings.public_base_url).host
+        return _unconfigured_media_host
+
+    if settings.buffer_api_key and settings.buffer_instagram_channel_id:
+        from src.adapters.publishers.buffer import BufferPublisher
+
+        client = _http_client()
+        closeables.append(client)
+        publishers[Channel.INSTAGRAM] = BufferPublisher(
+            http_client=client,
+            api_key=settings.buffer_api_key,
+            channel_id=settings.buffer_instagram_channel_id,
+            channel=Channel.INSTAGRAM,
+            resolve_image_url=image_url_resolver(),
+        )
+    elif settings.ig_token and settings.ig_user_id:
+        from src.adapters.publishers.instagram import InstagramGraphPublisher
 
         client = _http_client()
         closeables.append(client)
@@ -199,20 +219,22 @@ def _build_publisher_factory(
             http_client=client,
             token=settings.ig_token,
             ig_user_id=settings.ig_user_id,
-            resolve_image_url=resolve_image_url,
+            resolve_image_url=image_url_resolver(),
         )
     else:
         publishers[Channel.INSTAGRAM] = FakePublisher(Channel.INSTAGRAM)
 
     if settings.buffer_api_key and settings.buffer_linkedin_channel_id:
-        from src.adapters.publishers.buffer_linkedin import BufferLinkedInPublisher
+        from src.adapters.publishers.buffer import BufferPublisher
 
         client = _http_client()
         closeables.append(client)
-        publishers[Channel.LINKEDIN] = BufferLinkedInPublisher(
+        publishers[Channel.LINKEDIN] = BufferPublisher(
             http_client=client,
             api_key=settings.buffer_api_key,
             channel_id=settings.buffer_linkedin_channel_id,
+            channel=Channel.LINKEDIN,
+            resolve_image_url=image_url_resolver(),
         )
     elif settings.li_token and settings.li_author_urn:
         from src.adapters.publishers.linkedin import LinkedInPublisher
@@ -268,6 +290,7 @@ def build_container(settings: Settings) -> Container:
         publisher_factory=publisher_factory,
         digest_repository=digest_repository,
         media_store=media_store,
+        media_converter=PillowPdfConverter(),
         closeables=all_closeables,
     )
 

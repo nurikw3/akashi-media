@@ -12,6 +12,7 @@ def test_security_headers_present(client):
     assert resp.headers["x-frame-options"] == "DENY"
     assert resp.headers["x-content-type-options"] == "nosniff"
     assert "default-src 'self'" in resp.headers["content-security-policy"]
+    assert "img-src 'self' data: blob:" in resp.headers["content-security-policy"]
 
 
 def test_session_cookie_is_strict_samesite(client):

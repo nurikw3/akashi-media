@@ -8,9 +8,14 @@ def test_mediafile_accepts_image():
     assert media.filename == "p.jpg"
 
 
-def test_mediafile_rejects_non_image():
+def test_mediafile_accepts_pdf_for_linkedin_documents():
+    media = MediaFile(filename="doc.pdf", content_type="application/pdf", data=b"%PDF-1.4")
+    assert media.content_type == "application/pdf"
+
+
+def test_mediafile_rejects_unknown_type():
     with pytest.raises(ValueError):
-        MediaFile(filename="doc.pdf", content_type="application/pdf", data=b"x")
+        MediaFile(filename="doc.txt", content_type="text/plain", data=b"x")
 
 
 def test_mediafile_rejects_svg_xss_vector():

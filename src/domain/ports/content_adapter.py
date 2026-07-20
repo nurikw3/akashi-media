@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from src.domain.models import Channel
+from src.domain.models import Channel, ContentTask
 
 
 @runtime_checkable
@@ -18,4 +18,8 @@ class ContentAdapterPort(Protocol):
 
     def adapt(self, source_text: str, target: Channel) -> str:
         """Return adapted text. Raise ContentAdaptationError on failure."""
+        ...
+
+    def generate(self, task: ContentTask, brief: str) -> str:
+        """Run one named AKASHI editorial workflow from a user brief."""
         ...

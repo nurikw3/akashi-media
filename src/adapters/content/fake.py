@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from src.domain.models import Channel
+from src.domain.models import Channel, ContentTask
 
 
 class FakeContentAdapter:
@@ -19,3 +19,6 @@ class FakeContentAdapter:
         if self._transform is not None:
             return self._transform(source_text, target)
         return f"[{target.value.title()}-ready] {source_text}"
+
+    def generate(self, task: ContentTask, brief: str) -> str:
+        return f"[{task.value}] {brief}"

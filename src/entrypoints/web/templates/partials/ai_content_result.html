@@ -1,0 +1,11 @@
+<div id="ai-content-result" class="adapted">
+  {% if error %}
+  <p class="alert alert--error" role="alert">{{ error }}</p>
+  {% else %}
+  <label class="field">
+    <span class="field__label">Результат — проверьте факты перед публикацией</span>
+    <textarea class="field__textarea" id="ai-generated-text" data-ai-generated rows="12" readonly>{{ generated }}</textarea>
+  </label>
+  <button class="btn btn--primary" type="button" data-use-ai-result>Использовать в редакторе</button>
+  {% endif %}
+</div>

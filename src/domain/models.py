@@ -19,9 +19,19 @@ class Channel(str, Enum):
     LINKEDIN = "linkedin"
 
 
+class ContentTask(str, Enum):
+    """Editorial workflows supported by the AKASHI content system."""
+
+    CREATE_POST = "create_post"
+    GENERATE_IDEAS = "generate_ideas"
+    EDIT_DRAFT = "edit_draft"
+    INSTAGRAM_TO_LINKEDIN = "instagram_to_linkedin"
+    LINKEDIN_TO_INSTAGRAM = "linkedin_to_instagram"
+
+
 # Explicit allowlist — excludes image/svg+xml, which can carry scripts.
 ALLOWED_MEDIA_TYPES: frozenset[str] = frozenset(
-    {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    {"image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"}
 )
 
 

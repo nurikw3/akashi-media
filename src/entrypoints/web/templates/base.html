@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}AkashiMedia{% endblock %}</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260720-8" />
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -12,6 +12,6 @@
     {% block body %}{% endblock %}
   </div>
   <script src="/static/vendor/htmx.min.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v=20260720-8" defer></script>
 </body>
 </html>

@@ -94,3 +94,54 @@ class LinkedInPublisher:
             )
 
         return PublishResult.ok(Channel.LINKEDIN, external_id=post_id)
+
+    def publish_many(self, text: str, media_files: tuple[MediaFile, ...]) -> PublishResult:
+        """Publish the generated PDF as a LinkedIn document post."""
+        if len(media_files) != 1 or media_files[0].content_type != "application/pdf":
+            return self.publish(text, media_files[0]) if media_files else PublishResult.failed(
+                Channel.LINKEDIN, detail="Не удалось опубликовать в LinkedIn"
+            )
+        media = media_files[0]
+        try:
+            init = self._http.post(
+                f"{LINKEDIN_API_BASE}/rest/documents?action=initializeUpload",
+                json={"initializeUploadRequest": {"owner": self._author_urn}},
+                headers=self._headers(),
+            )
+            init.raise_for_status()
+            value = init.json()["value"]
+            upload_url = value["uploadUrl"]
+            document_urn = value["document"]
+            if not _is_trusted_upload_url(upload_url):
+                raise ValueError("Untrusted LinkedIn upload URL")
+            uploaded = self._http.put(
+                upload_url,
+                content=media.data,
+                headers={"Authorization": f"Bearer {self._token}"},
+            )
+            uploaded.raise_for_status()
+            created = self._http.post(
+                f"{LINKEDIN_API_BASE}/rest/posts",
+                json={
+                    "author": self._author_urn,
+                    "commentary": text,
+                    "visibility": "PUBLIC",
+                    "distribution": {
+                        "feedDistribution": "MAIN_FEED",
+                        "targetEntities": [],
+                        "thirdPartyDistributionChannels": [],
+                    },
+                    "content": {"media": {"id": document_urn}},
+                    "lifecycleState": "PUBLISHED",
+                },
+                headers=self._headers(),
+            )
+            created.raise_for_status()
+            post_id = created.headers.get("x-restli-id") or created.json().get("id")
+            if not post_id:
+                raise ValueError("LinkedIn response missing post id")
+        except Exception:  # noqa: BLE001
+            return PublishResult.failed(
+                Channel.LINKEDIN, detail="Не удалось опубликовать PDF в LinkedIn"
+            )
+        return PublishResult.ok(Channel.LINKEDIN, external_id=post_id)

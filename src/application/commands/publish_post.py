@@ -20,7 +20,11 @@ class PublishPostCommand:
     publisher: PublisherPort
     post_repository: PostRepository
 
-    def execute(self, text: str, media: MediaFile) -> PublishResult:
-        result = self.publisher.publish(text, media)
+    def execute(self, text: str, media: MediaFile | tuple[MediaFile, ...]) -> PublishResult:
+        if isinstance(media, tuple):
+            publish_many = getattr(self.publisher, "publish_many", None)
+            result = publish_many(text, media) if publish_many else self.publisher.publish(text, media[0])
+        else:
+            result = self.publisher.publish(text, media)
         self.post_repository.record(result)
         return result

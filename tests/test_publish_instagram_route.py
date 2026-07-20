@@ -1,11 +1,13 @@
 """HTTP slice: POST /publish/instagram (multipart upload → fake publisher)."""
 
+import base64
 import io
 
 
 def _png_bytes() -> bytes:
-    # Minimal valid-enough PNG signature; MediaFile only checks content-type + non-empty.
-    return b"\x89PNG\r\n\x1a\n" + b"0" * 32
+    return base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
 
 
 def test_publish_instagram_requires_login(client):

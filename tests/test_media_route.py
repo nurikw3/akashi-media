@@ -15,5 +15,18 @@ def test_media_route_serves_stored_bytes_without_login(app, client):
     assert resp.headers["content-type"].startswith("image/png")
 
 
+def test_media_route_supports_buffer_head_probe(app, client):
+    token = app.state.container.media_store.put(MEDIA)
+
+    resp = client.head(f"/media/{token}")
+
+    assert resp.status_code == 200
+    assert resp.content == b""
+    assert resp.headers["content-type"].startswith("image/png")
+    assert resp.headers["content-length"] == str(len(MEDIA.data))
+    # Buffer probes with HEAD, then downloads the same URL with GET.
+    assert client.get(f"/media/{token}").content == MEDIA.data
+
+
 def test_media_route_returns_404_for_unknown_token(client):
     assert client.get("/media/does-not-exist").status_code == 404
